@@ -55,9 +55,12 @@ function computeProfile(questions, answers) {
     const choice = answers[i];
     if (choice == null) return;
     for (const { key } of AXES) {
-      const possible = Math.max(...q.answers.map((a) => Math.abs(a.t[key] || 0)));
-      max[key] += possible;
-      total[key] += q.answers[choice].t[key] || 0;
+      // Se mide respecto a la media de las 3 respuestas, para que una pregunta
+      // cuyas opciones tiran hacia un polo no desequilibre el resultado.
+      const values = q.answers.map((a) => a.t[key] || 0);
+      const mean = (values[0] + values[1] + values[2]) / 3;
+      max[key] += Math.max(...values.map((v) => Math.abs(v - mean)));
+      total[key] += values[choice] - mean;
     }
   });
   const profile = {};

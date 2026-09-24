@@ -1,6 +1,6 @@
 # 🔥💬 Camelantes
 
-Juego para iPhone para que **dos personas se conozcan de verdad**: situaciones incómodas, vergonzosas, peligrosas, amorosas, cotidianas y sociales, cada una con **3 respuestas**. Al final, cada jugador descubre su **tipo de personalidad** y la pareja recibe su **porcentaje de afinidad**.
+Juego para iPhone para que **dos personas se conozcan de verdad**: **1000 situaciones** incómodas, vergonzosas, peligrosas, amorosas, cotidianas, sociales y picantes (+18), cada una con **3 respuestas**. Al final, cada jugador descubre su **tipo de personalidad** y la pareja recibe su **porcentaje de afinidad**.
 
 ## Cómo se juega
 
@@ -10,7 +10,7 @@ Juego para iPhone para que **dos personas se conozcan de verdad**: situaciones i
 4. La app os avisa de cuándo pasar el móvil y después revela las dos respuestas.
 5. Al terminar: % de afinidad, tipo de personalidad de cada uno, perfiles comparados, coincidencia por categoría y las preguntas en las que más chocasteis.
 
-Partidas de 10, 20, 30 o 50 preguntas, y podéis elegir qué categorías entran.
+Partidas de 10, 20, 30 o 50 preguntas, y podéis elegir qué categorías entran. La app recuerda las preguntas ya jugadas en cada móvil y no las repite hasta haberlas visto todas. La categoría 🌶️ Picante viene desactivada y pide confirmar la mayoría de edad.
 
 ## Personalidad y afinidad
 
@@ -24,6 +24,8 @@ Cada respuesta suma puntos en 4 rasgos:
 | Comunicación | Directo (D) | Diplomático (T) |
 
 La combinación da uno de **16 tipos** (p. ej. `EPCT` → *El Pegamento del Grupo*).
+
+Cada respuesta se mide respecto a la media de las 3 opciones de su pregunta, para que ningún polo salga favorecido.
 
 **Afinidad** = 50 % coincidencia de respuestas (suavizada, porque coincidir entre 3 opciones es difícil) + 50 % parecido entre los perfiles de personalidad.
 
@@ -48,13 +50,13 @@ python3 -m http.server 8000
 
 | Archivo | Contenido |
 |---|---|
-| `js/questions.js` | Las 50 situaciones y los puntos de cada respuesta |
+| `js/questions.js` | Las 1000 situaciones y los puntos de cada respuesta |
 | `js/personality.js` | Los 16 tipos y el cálculo de perfil y afinidad |
 | `js/app.js` | Pantallas y flujo del juego |
 | `css/styles.css` | Estilos (adaptados a notch / safe areas del iPhone) |
 | `sw.js`, `manifest.webmanifest` | Modo offline e instalación |
 
-Para añadir preguntas, añade un objeto a `QUESTIONS` con `id`, `cat`, `text` y 3 `answers` con sus puntos `t` (`E`, `A`, `C`, `D`, de −2 a +2).
+Para añadir preguntas, añade un objeto a `QUESTIONS` con el siguiente `id` libre (no cambies los existentes: la app los usa para recordar las ya jugadas), `cat`, `text` y 3 `answers` con sus puntos `t` (`E`, `A`, `C`, `D`, de −2 a +2).
 
 ## Seguridad y App Store
 
