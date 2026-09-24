@@ -1,5 +1,5 @@
 /* Service worker: la app funciona sin conexión una vez abierta. */
-const CACHE = "camelantes-v1";
+const CACHE = "camelantes-v2";
 const ASSETS = [
   "./",
   "index.html",

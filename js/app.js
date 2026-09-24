@@ -1,6 +1,7 @@
 /* Camelantes — lógica de la app (sin dependencias). */
 
 const STORAGE_KEY = "camelantes.game.v1";
+const SEEN_KEY = "camelantes.seen.v1";
 const LETTERS = ["A", "B", "C"];
 const COUNTS = [10, 20, 30, 50];
 
@@ -28,7 +29,8 @@ function freshSetup() {
   return {
     names: [...(state?.players || ["", ""])],
     count: 20,
-    cats: new Set(Object.keys(CATEGORIES)),
+    // Las categorías +18 empiezan desactivadas
+    cats: new Set(Object.keys(CATEGORIES).filter((k) => !CATEGORIES[k].adult)),
     guess: state?.guessMode ?? true,
   };
 }
@@ -49,6 +51,22 @@ function loadState() {
   } catch (_) {
     return null;
   }
+}
+
+/* Preguntas ya jugadas en este dispositivo, para no repetirlas */
+let seen = loadSeen();
+
+function loadSeen() {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY)) || []); } catch (_) { return new Set(); }
+}
+
+function markSeen(id) {
+  seen.add(id);
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify([...seen])); } catch (_) { /* modo privado */ }
+}
+
+function unseenCount(cats) {
+  return QUESTIONS.filter((q) => cats.has(q.cat) && !seen.has(q.id)).length;
 }
 
 function hasGameInProgress() {
@@ -79,7 +97,7 @@ function shuffle(arr) {
 }
 
 /** Elige N preguntas de `pool` repartidas de forma equilibrada entre las categorías. */
-function pickQuestions(cats, count, pool = QUESTIONS) {
+function pickBalanced(cats, count, pool) {
   const buckets = [...cats].map((c) => shuffle(pool.filter((q) => q.cat === c)));
   const picked = [];
   while (picked.length < count && buckets.some((b) => b.length)) {
@@ -87,7 +105,19 @@ function pickQuestions(cats, count, pool = QUESTIONS) {
       if (b.length && picked.length < count) picked.push(b.pop());
     }
   }
-  return shuffle(picked).map((q) => q.id);
+  return picked;
+}
+
+/**
+ * Elige N preguntas priorizando las que aún no se han jugado en este dispositivo.
+ * Si ya no quedan suficientes nuevas, se completan con otras ya vistas.
+ */
+function pickQuestions(cats, count) {
+  const inCats = QUESTIONS.filter((q) => cats.has(q.cat));
+  const fresh = pickBalanced(cats, count, inCats.filter((q) => !seen.has(q.id)));
+  const used = new Set(fresh.map((q) => q.id));
+  const refill = pickBalanced(cats, count - fresh.length, inCats.filter((q) => !used.has(q.id)));
+  return shuffle([...fresh, ...refill]).map((q) => q.id);
 }
 
 function go(screen) {
@@ -106,7 +136,7 @@ function renderHome() {
       <div class="hero">
         <div class="logo">🔥💬</div>
         <h1>Camel<span class="gradient-text">antes</span></h1>
-        <p class="muted">Situaciones incómodas, 3 respuestas y la verdad sobre vosotros dos. ¿Cuánta afinidad tenéis?</p>
+        <p class="muted">${QUESTIONS.length} situaciones incómodas, 3 respuestas y la verdad sobre vosotros dos. ¿Cuánta afinidad tenéis?</p>
         <div class="cat-cloud">${cats}</div>
       </div>
       <div class="spacer"></div>
@@ -129,6 +159,8 @@ function renderHowTo() {
         <p><strong>3.</strong> Si activáis el modo <em>“Adivina”</em>, además intentáis adivinar qué ha elegido el otro.</p>
         <p><strong>4.</strong> Pasaos el móvil cuando la app lo diga. ¡Sin mirar!</p>
         <p><strong>5.</strong> Tras cada pregunta se revelan las respuestas. Al final veréis vuestro <strong>tipo de personalidad</strong> y vuestro <strong>porcentaje de afinidad</strong>.</p>
+        <p><strong>6.</strong> La app recuerda las preguntas que ya habéis jugado en este móvil y no las repite hasta que hayáis visto todas.</p>
+        <p><strong>7.</strong> La categoría 🌶️ <strong>Picante</strong> es solo para adultos y viene desactivada: actívala al crear la partida.</p>
       </div>
       <div class="card stack">
         <h3>Los 4 rasgos que medimos</h3>
@@ -142,6 +174,7 @@ function renderHowTo() {
 
 function renderSetup() {
   const available = QUESTIONS.filter((q) => setup.cats.has(q.cat)).length;
+  const fresh = unseenCount(setup.cats);
   const canStart = setup.names.every((n) => n.trim()) && setup.cats.size > 0;
   return `
     <section class="screen">
@@ -166,9 +199,9 @@ function renderSetup() {
       <div class="card stack">
         <h3>Tipos de situaciones</h3>
         <div class="chips">
-          ${Object.entries(CATEGORIES).map(([k, c]) => `<button class="chip" data-action="cat" data-value="${k}" aria-pressed="${setup.cats.has(k)}">${c.emoji} ${c.label}</button>`).join("")}
+          ${Object.entries(CATEGORIES).map(([k, c]) => `<button class="chip" data-action="cat" data-value="${k}" aria-pressed="${setup.cats.has(k)}">${c.emoji} ${c.label}${c.adult ? " +18" : ""}</button>`).join("")}
         </div>
-        ${available < setup.count ? `<p class="muted">Con estas categorías hay ${available} preguntas disponibles.</p>` : ""}
+        <p class="muted">${setup.cats.size ? `${fresh} de ${available} preguntas sin jugar todavía.` : "Elige al menos una categoría."}</p>
       </div>
 
       <div class="card toggle-row">
@@ -494,11 +527,7 @@ const actions = {
   },
   rematch: () => {
     const cats = new Set(currentQuestions().map((q) => q.cat));
-    const n = state.qids.length;
-    // Prioriza preguntas que no han salido en esta partida
-    const unused = QUESTIONS.filter((q) => cats.has(q.cat) && !state.qids.includes(q.id));
-    const qids = pickQuestions(cats, n, unused.length >= n ? unused : QUESTIONS);
-    startGame(state.players, state.guessMode, qids);
+    startGame(state.players, state.guessMode, pickQuestions(cats, state.qids.length));
   },
 
   ready: () => { state.phase = "own"; state.pending = null; go("question"); },
@@ -520,6 +549,7 @@ const actions = {
     finishTurn();
   },
   next: () => {
+    markSeen(state.qids[state.index]);
     state.index++;
     state.turn = 0;
     go(state.index >= state.qids.length ? "results" : "handoff");
