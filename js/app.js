@@ -2,6 +2,8 @@
 
 const STORAGE_KEY = "camelantes.game.v1";
 const SEEN_KEY = "camelantes.seen.v1";
+const ADULT_KEY = "camelantes.adult.v1";
+const MAX_NAME = 20;
 const LETTERS = ["A", "B", "C"];
 const COUNTS = [10, 20, 30, 50];
 
@@ -32,32 +34,80 @@ function freshSetup() {
     // Las categorías +18 empiezan desactivadas
     cats: new Set(Object.keys(CATEGORIES).filter((k) => !CATEGORIES[k].adult)),
     guess: state?.guessMode ?? true,
+    askAdult: null, // categoría +18 pendiente de confirmar edad
   };
 }
 
 /* ─── Persistencia ─── */
 
 function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) { /* modo privado */ }
+  const { confirmWipe, ...persisted } = state;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted)); } catch (_) { /* modo privado */ }
 }
 
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (!s || !Array.isArray(s.qids)) return null;
-    return { ...s, resumeScreen: s.screen === "home" ? s.resumeScreen : s.screen, screen: "home" };
+    return raw ? sanitizeState(JSON.parse(raw)) : null;
   } catch (_) {
     return null;
   }
+}
+
+/**
+ * Valida una partida guardada. Los datos del almacenamiento local pueden estar
+ * corruptos o manipulados: si algo no encaja, se descarta la partida.
+ */
+function sanitizeState(s) {
+  const isChoice = (v) => v == null || (Number.isInteger(v) && v >= 0 && v <= 2);
+  const choices = (arr) => Array.isArray(arr) && arr.length <= 1000 && arr.every(isChoice);
+  const valid =
+    s && typeof s === "object" &&
+    Array.isArray(s.players) && s.players.length === 2 &&
+    s.players.every((n) => typeof n === "string" && n.length <= MAX_NAME) &&
+    Array.isArray(s.qids) && s.qids.length <= 1000 && s.qids.every((id) => QUESTIONS.some((q) => q.id === id)) &&
+    Number.isInteger(s.index) && s.index >= 0 && s.index <= s.qids.length &&
+    [0, 1].includes(s.turn) && ["own", "guess"].includes(s.phase) &&
+    Array.isArray(s.answers) && s.answers.length === 2 && s.answers.every(choices) &&
+    Array.isArray(s.guesses) && s.guesses.length === 2 && s.guesses.every(choices);
+  if (!valid) return null;
+  const screens = ["handoff", "question", "reveal", "results"];
+  const last = s.screen === "home" ? s.resumeScreen : s.screen;
+  return {
+    ...freshState(),
+    players: s.players,
+    guessMode: s.guessMode === true,
+    qids: s.qids,
+    index: s.index,
+    answers: s.answers,
+    guesses: s.guesses,
+    turn: s.turn,
+    phase: s.phase,
+    resumeScreen: screens.includes(last) ? last : "handoff",
+  };
 }
 
 /* Preguntas ya jugadas en este dispositivo, para no repetirlas */
 let seen = loadSeen();
 
 function loadSeen() {
-  try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY)) || []); } catch (_) { return new Set(); }
+  try {
+    const ids = JSON.parse(localStorage.getItem(SEEN_KEY));
+    return new Set(Array.isArray(ids) ? ids.filter(Number.isInteger) : []);
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function adultConfirmed() {
+  try { return localStorage.getItem(ADULT_KEY) === "1"; } catch (_) { return false; }
+}
+
+function clearLocalData() {
+  try { [STORAGE_KEY, SEEN_KEY, ADULT_KEY].forEach((k) => localStorage.removeItem(k)); } catch (_) { /* nada que borrar */ }
+  seen = new Set();
+  state = freshState();
+  setup = freshSetup();
 }
 
 function markSeen(id) {
@@ -167,6 +217,14 @@ function renderHowTo() {
         ${AXES.map((a) => `<p class="muted">${a.pos} ↔ ${a.neg}</p>`).join("")}
         <p class="muted">Combinándolos salen 16 tipos de personalidad distintos.</p>
       </div>
+      <div class="card stack">
+        <h3>Tus datos</h3>
+        <p class="muted">Todo se guarda solo en este móvil: nombres, partida en curso y preguntas jugadas. No se envía nada a ningún servidor. <a href="privacidad.html" style="color:var(--p1)">Política de privacidad</a></p>
+        ${state.confirmWipe
+          ? `<p><strong>¿Borrar la partida, el historial de preguntas y la confirmación de edad?</strong></p>
+             <div class="row"><button class="btn btn-small" data-action="wipe-yes">Sí, borrar</button><button class="btn btn-small btn-ghost" data-action="wipe-no">Cancelar</button></div>`
+          : `<button class="btn btn-small btn-ghost" data-action="wipe">Borrar datos de este móvil</button>`}
+      </div>
       <div class="spacer"></div>
       <button class="btn btn-primary" data-action="new">¡A jugar!</button>
     </section>`;
@@ -182,10 +240,10 @@ function renderSetup() {
 
       <div class="card stack">
         <label class="field"><span><span class="p1-dot"></span>Jugador 1</span>
-          <input type="text" data-name="0" value="${esc(setup.names[0])}" placeholder="Nombre" maxlength="20" autocomplete="off" enterkeyhint="next">
+          <input type="text" id="player-1" data-name="0" value="${esc(setup.names[0])}" placeholder="Nombre" maxlength="${MAX_NAME}" autocomplete="off" enterkeyhint="next">
         </label>
         <label class="field"><span><span class="p2-dot"></span>Jugador 2</span>
-          <input type="text" data-name="1" value="${esc(setup.names[1])}" placeholder="Nombre" maxlength="20" autocomplete="off" enterkeyhint="done">
+          <input type="text" id="player-2" data-name="1" value="${esc(setup.names[1])}" placeholder="Nombre" maxlength="${MAX_NAME}" autocomplete="off" enterkeyhint="done">
         </label>
       </div>
 
@@ -201,6 +259,12 @@ function renderSetup() {
         <div class="chips">
           ${Object.entries(CATEGORIES).map(([k, c]) => `<button class="chip" data-action="cat" data-value="${k}" aria-pressed="${setup.cats.has(k)}">${c.emoji} ${c.label}${c.adult ? " +18" : ""}</button>`).join("")}
         </div>
+        ${setup.askAdult ? `
+          <div class="card stack" role="alertdialog" aria-label="Confirmación de edad">
+            <p><strong>🌶️ Contenido para adultos</strong></p>
+            <p class="muted">Esta categoría incluye situaciones de contenido sexual sugerente. Confirma que los dos jugadores tenéis 18 años o más.</p>
+            <div class="row"><button class="btn btn-small" data-action="adult-yes">Somos mayores de 18</button><button class="btn btn-small btn-ghost" data-action="adult-no">Cancelar</button></div>
+          </div>` : ""}
         <p class="muted">${setup.cats.size ? `${fresh} de ${available} preguntas sin jugar todavía.` : "Elige al menos una categoría."}</p>
       </div>
 
@@ -502,7 +566,7 @@ async function share(btn) {
 
 const actions = {
   home: () => go("home"),
-  howto: () => go("howto"),
+  howto: () => { state.confirmWipe = false; go("howto"); },
   new: () => { setup = freshSetup(); go("setup"); },
   resume: () => {
     // Por privacidad se vuelve a "pasa el móvil", salvo a mitad de adivinar o en la revelación
@@ -517,11 +581,24 @@ const actions = {
   count: (el) => { setup.count = Number(el.dataset.value); render(); },
   cat: (el) => {
     const k = el.dataset.value;
-    setup.cats.has(k) ? setup.cats.delete(k) : setup.cats.add(k);
+    if (!CATEGORIES[k]) return;
+    if (setup.cats.has(k)) setup.cats.delete(k);
+    else if (CATEGORIES[k].adult && !adultConfirmed()) setup.askAdult = k;
+    else setup.cats.add(k);
     render();
   },
+  "adult-yes": () => {
+    try { localStorage.setItem(ADULT_KEY, "1"); } catch (_) { /* se volverá a preguntar */ }
+    setup.cats.add(setup.askAdult);
+    setup.askAdult = null;
+    render();
+  },
+  "adult-no": () => { setup.askAdult = null; render(); },
+  wipe: () => { state.confirmWipe = true; render(); },
+  "wipe-no": () => { state.confirmWipe = false; render(); },
+  "wipe-yes": () => { clearLocalData(); render(); window.scrollTo(0, 0); }, // sin guardar nada tras borrar
   start: () => {
-    const players = setup.names.map((n) => n.trim());
+    const players = setup.names.map((n) => n.trim().slice(0, MAX_NAME));
     if (!players.every(Boolean) || !setup.cats.size) return;
     startGame(players, setup.guess, pickQuestions(setup.cats, setup.count));
   },

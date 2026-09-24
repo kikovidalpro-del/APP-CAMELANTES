@@ -55,3 +55,9 @@ python3 -m http.server 8000
 | `sw.js`, `manifest.webmanifest` | Modo offline e instalación |
 
 Para añadir preguntas, añade un objeto a `QUESTIONS` con `id`, `cat`, `text` y 3 `answers` con sus puntos `t` (`E`, `A`, `C`, `D`, de −2 a +2).
+
+## Seguridad y App Store
+
+- [`SECURITY.md`](SECURITY.md): cómo protege la app a sus usuarios y cómo informar de un problema.
+- [`docs/PLAN-APP-STORE.md`](docs/PLAN-APP-STORE.md): plan para convertirla en app nativa y venderla en el App Store.
+- [`privacidad.html`](privacidad.html): política de privacidad (URL obligatoria para el App Store).

@@ -1,5 +1,5 @@
 /* Service worker: la app funciona sin conexión una vez abierta. */
-const CACHE = "camelantes-v2";
+const CACHE = "camelantes-v3";
 const ASSETS = [
   "./",
   "index.html",
@@ -7,6 +7,7 @@ const ASSETS = [
   "js/questions.js",
   "js/personality.js",
   "js/app.js",
+  "js/register-sw.js",
   "manifest.webmanifest",
   "icons/apple-touch-icon.png",
   "icons/icon-192.png",
@@ -26,13 +27,17 @@ self.addEventListener("activate", (e) => {
 });
 
 // Red primero (para recibir actualizaciones), caché si no hay conexión.
+// Solo se gestionan peticiones GET a la propia app, y solo se guardan respuestas correctas.
 self.addEventListener("fetch", (e) => {
-  if (e.request.method !== "GET") return;
+  const url = new URL(e.request.url);
+  if (e.request.method !== "GET" || url.origin !== self.location.origin) return;
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy));
+        if (res.ok && res.type === "basic") {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+        }
         return res;
       })
       .catch(() => caches.match(e.request, { ignoreSearch: true }))
