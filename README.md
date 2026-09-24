@@ -31,7 +31,7 @@ La combinación da uno de **16 tipos** (p. ej. `EPCT` → *El Pegamento del Grup
 
 Es una web app (PWA): no hace falta Mac, ni App Store, ni cuenta de desarrollador.
 
-1. Publica el repo con GitHub Pages: en **Settings → Pages → Source**, elige **GitHub Actions**. El workflow `.github/workflows/pages.yml` la publica en cada push a `main`.
+1. Publica el repo con GitHub Pages: en **Settings → Pages → Source**, elige **GitHub Actions**. El workflow `.github/workflows/pages.yml` la publica en cada push a la rama principal del repositorio. GitHub Pages solo funciona en repositorios **públicos** (o privados con GitHub Pro).
 2. Abre la URL (`https://<usuario>.github.io/<repo>/`) en **Safari** en el iPhone.
 3. Pulsa **Compartir → Añadir a pantalla de inicio**.
 

@@ -446,7 +446,7 @@ function finishTurn() {
   }
 }
 
-async function share() {
+async function share(btn) {
   const res = computeAffinity(currentQuestions(), state.answers[0], state.answers[1]);
   const types = res.profiles.map((p) => TYPES[typeCode(p)]);
   const text =
@@ -454,13 +454,17 @@ async function share() {
     `${types[0].emoji} ${state.players[0]}: ${types[0].name}\n` +
     `${types[1].emoji} ${state.players[1]}: ${types[1].name}`;
   try {
-    if (navigator.share) {
-      await navigator.share({ title: "Camelantes", text, url: location.href });
-    } else {
-      await navigator.clipboard.writeText(text);
-      alert("Resultado copiado al portapapeles");
-    }
-  } catch (_) { /* cancelado */ }
+    await navigator.share({ title: "Camelantes", text, url: location.href });
+    return;
+  } catch (e) {
+    if (e?.name === "AbortError") return; // el usuario cerró el menú de compartir
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    btn.textContent = "¡Copiado! Pégalo donde quieras";
+  } catch (_) {
+    btn.textContent = "No se pudo copiar el resultado";
+  }
 }
 
 const actions = {
