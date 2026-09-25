@@ -4,6 +4,9 @@
 const STORAGE_KEY = "camelantes.game.v2";
 const SEEN_KEY = "camelantes.seen.v2";
 const ADULT_KEY = "camelantes.adult.v1";
+// Datos de versiones anteriores que ya no se usan: se borran al arrancar
+const LEGACY_KEYS = ["camelantes.game.v1", "camelantes.seen.v1"];
+try { LEGACY_KEYS.forEach((k) => localStorage.removeItem(k)); } catch (_) { /* sin almacenamiento */ }
 const MAX_NAME = 20;
 const LETTERS = ["A", "B", "C"];
 const COUNTS = [10, 20, 30, 50];
