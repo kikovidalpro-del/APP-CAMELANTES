@@ -1,7 +1,8 @@
 /* Camelantes — lógica de la app (sin dependencias). */
 
-const STORAGE_KEY = "camelantes.game.v1";
-const SEEN_KEY = "camelantes.seen.v1";
+// v2: banco de preguntas de pareja (los ids de la v1 eran otras preguntas)
+const STORAGE_KEY = "camelantes.game.v2";
+const SEEN_KEY = "camelantes.seen.v2";
 const ADULT_KEY = "camelantes.adult.v1";
 const MAX_NAME = 20;
 const LETTERS = ["A", "B", "C"];
@@ -137,6 +138,11 @@ const currentPlayer = () => (state.turn === 0 ? firstPlayerOf(state.index) : 1 -
 const nameOf = (p) => esc(state.players[p]);
 const nameTag = (p) => `<span class="name-p${p + 1}">${nameOf(p)}</span>`;
 
+/** Texto de una pregunta visto por `viewer`: {pareja} es el nombre de la otra persona. */
+const forPlayer = (text, viewer) => esc(text).replaceAll("{pareja}", nameOf(1 - viewer));
+/** Texto de una pregunta cuando lo leen los dos a la vez. */
+const forBoth = (text) => esc(text).replaceAll("{pareja}", "tu pareja");
+
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -186,7 +192,7 @@ function renderHome() {
       <div class="hero">
         <div class="logo">🔥💬</div>
         <h1>Camel<span class="gradient-text">antes</span></h1>
-        <p class="muted">${QUESTIONS.length} situaciones incómodas, 3 respuestas y la verdad sobre vosotros dos. ¿Cuánta afinidad tenéis?</p>
+        <p class="muted">¿Encajaríais como pareja? ${QUESTIONS.length} situaciones para responder en secreto y descubrir vuestra afinidad.</p>
         <div class="cat-cloud">${cats}</div>
       </div>
       <div class="spacer"></div>
@@ -204,7 +210,7 @@ function renderHowTo() {
     <section class="screen">
       <div class="topbar"><button class="icon-btn" data-action="home" aria-label="Volver">←</button><h2>Cómo se juega</h2></div>
       <div class="card stack">
-        <p><strong>1.</strong> Juegan dos personas con un solo móvil.</p>
+        <p><strong>1.</strong> Jugáis los dos con un solo móvil: ideal para una cita o para las primeras semanas de relación.</p>
         <p><strong>2.</strong> En cada situación, cada uno elige <em>en secreto</em> cómo actuaría entre 3 opciones.</p>
         <p><strong>3.</strong> Si activáis el modo <em>“Adivina”</em>, además intentáis adivinar qué ha elegido el otro.</p>
         <p><strong>4.</strong> Pasaos el móvil cuando la app lo diga. ¡Sin mirar!</p>
@@ -239,10 +245,10 @@ function renderSetup() {
       <div class="topbar"><button class="icon-btn" data-action="home" aria-label="Volver">←</button><h2>Nueva partida</h2></div>
 
       <div class="card stack">
-        <label class="field"><span><span class="p1-dot"></span>Jugador 1</span>
+        <label class="field"><span><span class="p1-dot"></span>Tu nombre</span>
           <input type="text" id="player-1" data-name="0" value="${esc(setup.names[0])}" placeholder="Nombre" maxlength="${MAX_NAME}" autocomplete="off" enterkeyhint="next">
         </label>
-        <label class="field"><span><span class="p2-dot"></span>Jugador 2</span>
+        <label class="field"><span><span class="p2-dot"></span>Nombre de la otra persona</span>
           <input type="text" id="player-2" data-name="1" value="${esc(setup.names[1])}" placeholder="Nombre" maxlength="${MAX_NAME}" autocomplete="off" enterkeyhint="done">
         </label>
       </div>
@@ -313,8 +319,10 @@ function renderQuestion() {
   const other = 1 - p;
   const guessing = state.phase === "guess";
   const prompt = guessing
-    ? `¿Y qué crees que haría ${nameTag(other)}?`
+    ? `¿Qué crees que elegirá ${nameTag(other)}?`
     : "¿Qué harías tú?";
+  // Al adivinar se ve la situación tal como le aparece a la otra persona
+  const viewer = guessing ? other : p;
   return `
     <section class="screen">
       ${topbar()}
@@ -322,12 +330,13 @@ function renderQuestion() {
         <span class="tag" style="color:${cat.color}">${cat.emoji} ${cat.label}</span>
         <span class="who p${p + 1}">${nameOf(p)}</span>
       </div>
-      <p class="situation">${esc(q.text)}</p>
+      ${guessing ? `<p class="muted">Ponte en el lugar de ${nameTag(other)}. Así le aparece la situación:</p>` : ""}
+      <p class="situation">${forPlayer(q.text, viewer)}</p>
       <p class="muted"><strong>${prompt}</strong></p>
       <div class="options">
         ${q.answers.map((a, i) => `
           <button class="option ${state.pending === i ? "selected" : ""}" data-action="pick" data-value="${i}">
-            <span class="letter">${LETTERS[i]}</span><span>${esc(a.text)}</span>
+            <span class="letter">${LETTERS[i]}</span><span>${forPlayer(a.text, viewer)}</span>
           </button>`).join("")}
       </div>
       <div class="spacer"></div>
@@ -349,7 +358,7 @@ function renderReveal() {
     return `
       <div class="card reveal-card p${p + 1}">
         <span class="label name-p${p + 1}">${nameOf(p)}</span>
-        <p><strong>${LETTERS[own]}.</strong> ${esc(q.answers[own].text)}</p>
+        <p><strong>${LETTERS[own]}.</strong> ${forPlayer(q.answers[own].text, p)}</p>
         ${state.guessMode ? `<p class="guess-line ${hit ? "hit" : ""}">${hit ? "✅ Adivinó" : "❌ Pensaba"} que ${nameOf(1 - p)} elegiría la ${LETTERS[guess]}</p>` : ""}
       </div>`;
   };
@@ -357,7 +366,7 @@ function renderReveal() {
   return `
     <section class="screen">
       ${topbar()}
-      <p class="muted">${esc(q.text)}</p>
+      <p class="muted">${forBoth(q.text)}</p>
       <div class="banner ${match ? "match" : "nomatch"}">${match ? "🎯 ¡Habéis coincidido!" : "⚡ Pensáis distinto"}</div>
       ${card(0)}
       ${card(1)}
@@ -391,12 +400,13 @@ function renderResults() {
     const t = TYPES[code];
     return `
       <div class="card type-card">
-        <span class="label name-p${p + 1}" style="font-weight:700">${nameOf(p)} es…</span>
+        <span class="label name-p${p + 1}" style="font-weight:700">El tipo de ${nameOf(p)}</span>
         <div class="type-head">
           <div class="type-emoji">${t.emoji}</div>
           <div><h3>${t.name}</h3><div class="type-code">${code}</div></div>
         </div>
         <p class="muted">${t.desc}</p>
+        <p><strong>En pareja:</strong> ${t.couple.replace(/^En pareja /, "")}</p>
       </div>`;
   };
 
@@ -426,9 +436,9 @@ function renderResults() {
     .filter((x) => x.a !== x.b);
   const clashList = shuffle(clashes).slice(0, 3).map(({ q, a, b }) => `
     <div class="clash">
-      <p><strong>${esc(q.text)}</strong></p>
-      <p><span class="name-p1">${nameOf(0)}:</span> ${esc(q.answers[a].text)}</p>
-      <p><span class="name-p2">${nameOf(1)}:</span> ${esc(q.answers[b].text)}</p>
+      <p><strong>${forBoth(q.text)}</strong></p>
+      <p><span class="name-p1">${nameOf(0)}:</span> ${forPlayer(q.answers[a].text, 0)}</p>
+      <p><span class="name-p2">${nameOf(1)}:</span> ${forPlayer(q.answers[b].text, 1)}</p>
     </div>`).join("");
 
   return `
@@ -471,6 +481,13 @@ function renderResults() {
       <div class="card stack">
         <h3>Coincidencia por tipo de situación</h3>
         ${catRows}
+      </div>
+
+      <div class="card stack">
+        <h3>Vosotros como pareja 💞</h3>
+        ${coupleInsights(res.profiles[0], res.profiles[1]).map((x) => `
+          <p><span class="tag">${x.close ? "✅ En sintonía" : "⚠️ Hablad de esto"}</span></p>
+          <p class="muted"><strong>${x.axis.pos} / ${x.axis.neg}.</strong> ${x.text}</p>`).join("")}
       </div>
 
       ${clashList ? `<div class="card stack"><h3>Donde más chocasteis ⚡</h3>${clashList}</div>` : ""}
@@ -547,7 +564,7 @@ async function share(btn) {
   const res = computeAffinity(currentQuestions(), state.answers[0], state.answers[1]);
   const types = res.profiles.map((p) => TYPES[typeCode(p)]);
   const text =
-    `🔥 ${state.players[0]} y ${state.players[1]} tenemos un ${res.affinity}% de afinidad en Camelantes.\n` +
+    `🔥 ${state.players[0]} y ${state.players[1]} tenemos un ${res.affinity}% de afinidad como pareja en Camelantes.\n` +
     `${types[0].emoji} ${state.players[0]}: ${types[0].name}\n` +
     `${types[1].emoji} ${state.players[1]}: ${types[1].name}`;
   try {
