@@ -144,7 +144,10 @@ const nameTag = (p) => `<span class="name-p${p + 1}">${nameOf(p)}</span>`;
 /** Texto de una pregunta visto por `viewer`: {pareja} es el nombre de la otra persona. */
 const forPlayer = (text, viewer) => esc(text).replaceAll("{pareja}", nameOf(1 - viewer));
 /** Texto de una pregunta cuando lo leen los dos a la vez. */
-const forBoth = (text) => esc(text).replaceAll("{pareja}", "tu pareja");
+const forBoth = (text) => {
+  const t = esc(text).replaceAll("{pareja}", "tu pareja");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
 
 function shuffle(arr) {
   const a = [...arr];

@@ -1,6 +1,6 @@
 # 🔥💬 Camelantes
 
-Juego para iPhone para que **dos personas se conozcan de verdad**: **1000 situaciones** incómodas, vergonzosas, peligrosas, amorosas, cotidianas, sociales y picantes (+18), cada una con **3 respuestas**. Al final, cada jugador descubre su **tipo de personalidad** y la pareja recibe su **porcentaje de afinidad**.
+Juego para iPhone para que **dos personas que se están conociendo descubran si encajarían como pareja**: **1000 situaciones** de pareja (día a día, vergüenza, riesgo, romance, dilemas, amigos y familia, y picante +18), cada una con **3 respuestas**. Cada pregunta muestra el nombre de la otra persona. Al final, cada uno descubre su **tipo de personalidad** y cómo es en pareja, y los dos reciben su **porcentaje de afinidad** y una lectura de en qué están en sintonía y de qué deberían hablar.
 
 ## Cómo se juega
 
@@ -18,12 +18,12 @@ Cada respuesta suma puntos en 4 rasgos:
 
 | Rasgo | Polo + | Polo − |
 |---|---|---|
-| Energía | Extrovertido (E) | Introvertido (I) |
-| Riesgo | Atrevido (A) | Prudente (P) |
+| Energía | Extroversión (E) | Introversión (I) |
+| Riesgo | Atrevimiento (A) | Prudencia (P) |
 | Decisiones | Corazón (C) | Lógica (L) |
-| Comunicación | Directo (D) | Diplomático (T) |
+| Comunicación | Franqueza (D) | Diplomacia (T) |
 
-La combinación da uno de **16 tipos** (p. ej. `EPCT` → *El Pegamento del Grupo*).
+La combinación da uno de **16 tipos** (p. ej. `EPCT` → *Pegamento del grupo*).
 
 Cada respuesta se mide respecto a la media de las 3 opciones de su pregunta, para que ningún polo salga favorecido.
 
@@ -50,11 +50,13 @@ python3 -m http.server 8000
 
 | Archivo | Contenido |
 |---|---|
-| `js/questions.js` | Las 1000 situaciones y los puntos de cada respuesta |
+| `js/questions.js` | Las 1000 situaciones de pareja y los puntos de cada respuesta |
 | `js/personality.js` | Los 16 tipos y el cálculo de perfil y afinidad |
 | `js/app.js` | Pantallas y flujo del juego |
 | `css/styles.css` | Estilos (adaptados a notch / safe areas del iPhone) |
 | `sw.js`, `manifest.webmanifest` | Modo offline e instalación |
+
+Los textos no presuponen el género de ninguno de los dos. `{pareja}` se sustituye en pantalla por el nombre de la otra persona.
 
 Para añadir preguntas, añade un objeto a `QUESTIONS` con el siguiente `id` libre (no cambies los existentes: la app los usa para recordar las ya jugadas), `cat`, `text` y 3 `answers` con sus puntos `t` (`E`, `A`, `C`, `D`, de −2 a +2).
 
